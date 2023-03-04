@@ -5,15 +5,7 @@ from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import cv2
 import math
-import utility
-
-# Colors
-RED = (0, 0, 255)
-GREEN = (0, 255, 0)
-YELLOW = (0, 255, 255)
-BLUE = (255, 0, 0)
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
+from utility import Utils
 
 # Landmarks for distance features
 NOSE_LANDMARK = 1
@@ -27,7 +19,6 @@ RIGHT_MOUTH_LANDMARK = 291
 # Landmarks for gradient features
 NASAL_WRINKLES_0 = 108
 NASAL_WRINKLES_1 = 357
-
 L_SMILE_FOLD_0 = 101
 L_SMILE_FOLD_1 = 49
 L_SMILE_FOLD_2 = 61
@@ -36,26 +27,24 @@ R_SMILE_FOLD_0 = 279
 R_SMILE_FOLD_1 = 330
 R_SMILE_FOLD_2 = 434
 R_SMILE_FOLD_3 = 291
-
 L_EYE_BBOX_0 = 225
 L_EYE_BBOX_1 = 221
 L_EYE_BBOX_2 = 233
 L_EYE_BBOX_3 = 228
-
 R_EYE_BBOX_0 = 445
 R_EYE_BBOX_1 = 441
 R_EYE_BBOX_2 = 453
 R_EYE_BBOX_3 = 448
 
 
-def rotate(points, angle):
-    ANGLE = np.deg2rad(angle)
+def rotate(points, deg_angle):
+    rad_angle = np.deg2rad(deg_angle)
     c_x, c_y = np.mean(points, axis=0)
     return np.array(
         [
             [
-                c_x + np.cos(ANGLE) * (px - c_x) - np.sin(ANGLE) * (py - c_x),
-                c_y + np.sin(ANGLE) * (px - c_y) + np.cos(ANGLE) * (py - c_y)
+                c_x + np.cos(rad_angle) * (px - c_x) - np.sin(rad_angle) * (py - c_x),
+                c_y + np.sin(rad_angle) * (px - c_y) + np.cos(rad_angle) * (py - c_y)
             ]
             for px, py in points
         ]
@@ -81,14 +70,27 @@ def looking_direction(x, y):
     return text
 
 
-def frame_text_direction_and_angles(frame_debug, direction_text, width, x, y, z):
-    cv2.putText(frame_debug, direction_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
+def frame_text_direction_and_angles(frame_debug, direction_text, x, y, z):
+    cv2.putText(frame_debug, direction_text, (20, 50), Utils.FONT, 1, Utils.BLUE, 2)
     str_angle_x = str(np.round(x, 2))
     str_angle_y = str(np.round(y, 2))
     str_angle_z = str(np.round(z, 2))
-    cv2.putText(frame_debug, "x: " + str_angle_x, (width - 150, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
-    cv2.putText(frame_debug, "y: " + str_angle_y, (width - 150, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
-    cv2.putText(frame_debug, "z: " + str_angle_z, (width - 150, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, RED, 2)
+    cv2.putText(frame_debug, "x-angle: " + str_angle_x, (20, 70), Utils.FONT, 0.5, Utils.BLUE, 1)
+    cv2.putText(frame_debug, "y-angle: " + str_angle_y, (20, 90), Utils.FONT, 0.5, Utils.BLUE, 1)
+    cv2.putText(frame_debug, "z-angle: " + str_angle_z, (20, 110), Utils.FONT, 0.5, Utils.BLUE, 1)
+    return frame_debug
+
+
+def text_distances(distances, frame_debug):
+    cv2.putText(frame_debug, 'Facial distances', (20, 280), Utils.FONT, 0.5, Utils.RED, 2)
+    cv2.putText(frame_debug, f'Mouth horizontal: {distances[0]:.2f}', (20, 300), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Mouth vertical: {distances[1]:.2f}', (20, 320), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Left eyebrow to iris: {distances[2]:.2f}', (20, 340), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Left iris to mouth: {distances[3]:.2f}', (20, 360), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Left eyebrow to mouth: {distances[4]:.2f}', (20, 380), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Right eyebrow to iris: {distances[5]:.2f}', (20, 400), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Right iris to mouth: {distances[6]:.2f}', (20, 420), Utils.FONT, 0.4, Utils.RED, 1)
+    cv2.putText(frame_debug, f'Right eyebrow to mouth: {distances[7]:.2f}', (20, 440), Utils.FONT, 0.4, Utils.RED, 1)
     return frame_debug
 
 
@@ -117,7 +119,7 @@ def get_rotation_angles(face_2d, face_3d, img_w, img_h):
     # Get rotational matrix
     rot_matrix, jac = cv2.Rodrigues(rot_vec)
     # Get angles
-    angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rot_matrix)
+    angles, mat_r, mat_q, q_x, q_y, q_z = cv2.RQDecomp3x3(rot_matrix)
     # Get the y rotation degree
     x = angles[0] * 360
     y = angles[1] * 360
@@ -139,7 +141,7 @@ class FaceMeshDetector:
         self.faceMesh = self.mpFaceMesh.FaceMesh(self.staticMode, self.maxFaces, self.refineLandmarks,
                                                  self.minDetectionCon, self.minTrackCon)
         self.drawSpec = self.mpDraw.DrawingSpec(thickness=1, circle_radius=2)
-        self.connDrawSpec = self.mpDraw.DrawingSpec(thickness=1, circle_radius=2, color=GREEN)
+        self.connDrawSpec = self.mpDraw.DrawingSpec(thickness=1, circle_radius=2, color=Utils.GREEN)
 
         # 2D Face landmarks
         self.nose_2d = None
@@ -177,36 +179,36 @@ class FaceMeshDetector:
         self.facial_distances = []  # 8D
         self.facial_masks = []  # 5D
 
-    def findNumberedFaceMesh(self, img, draw=True):
-        self.results = self.faceMesh.process(img)
+    def face_enumerated_landmarks(self, image):
+        self.results = self.faceMesh.process(image)
         faces = []
 
         if self.results.multi_face_landmarks:
-            for faceLms in self.results.multi_face_landmarks:
-                self.mpDraw.draw_landmarks(img, faceLms,
+            for face_lms in self.results.multi_face_landmarks:
+                self.mpDraw.draw_landmarks(image, face_lms,
                                            self.mpFaceMesh.FACEMESH_FACE_OVAL,
                                            self.drawSpec, self.drawSpec)
                 face_3d = []
-                for id, lm in enumerate(faceLms.landmark):
-                    ih, iw, ic = img.shape
+                for idx, lm in enumerate(face_lms.landmark):
+                    ih, iw, ic = image.shape
                     x, y = lm.x * iw, lm.y * ih
                     int_x, int_y = int(x), int(y)
-                    cv2.putText(img, str(id), (int_x, int_y), cv2.FONT_HERSHEY_PLAIN, 0.5, GREEN, 1)
+                    cv2.putText(image, str(idx), (int_x, int_y), cv2.FONT_HERSHEY_PLAIN, 0.5, Utils.GREEN, 1)
                     face_3d.append([int_x, int_y, lm.z])
                 faces.append(face_3d)
-        return img, faces
+        return image, faces
 
     def get_iris_centers(self, img_w, img_h):
-        LEFT_IRIS = [474, 475, 476, 477]
-        RIGHT_IRIS = [469, 470, 471, 472]
+        left_iris = [474, 475, 476, 477]
+        right_iris = [469, 470, 471, 472]
         if self.results.multi_face_landmarks:
             mesh_points = np.array(
                 [
                     np.multiply([p.x, p.y], [img_w, img_h]).astype(int)
                     for p in self.results.multi_face_landmarks[0].landmark
                 ])
-            (l_cx, l_cy), l_radius = cv2.minEnclosingCircle(mesh_points[LEFT_IRIS])
-            (r_cx, r_cy), r_radius = cv2.minEnclosingCircle(mesh_points[RIGHT_IRIS])
+            (l_cx, l_cy), l_radius = cv2.minEnclosingCircle(mesh_points[left_iris])
+            (r_cx, r_cy), r_radius = cv2.minEnclosingCircle(mesh_points[right_iris])
             self.r_iris = np.array([l_cx, l_cy], dtype=np.int32)
             self.l_iris = np.array([r_cx, r_cy], dtype=np.int32)
 
@@ -214,18 +216,18 @@ class FaceMeshDetector:
         # Compute and display head position (considering nose landmark)
         p0 = (int(self.nose_2d[0]), int(self.nose_2d[1]))
         p1 = (int(self.nose_2d[0] + y * 10), int(self.nose_2d[1] - x * 10))
-        cv2.line(frame_debug, p0, p1, BLACK, 1)
+        cv2.line(frame_debug, p0, p1, Utils.BLACK, 1)
 
         # Display
-        frame_debug, mouth_h = distance_between_two_lm(frame_debug, self.l_mouth, self.r_mouth, WHITE)
-        frame_debug, mouth_v = distance_between_two_lm(frame_debug, self.upper_lip, self.lower_lip, WHITE)
-        frame_debug, l_eyebrow_iris = distance_between_two_lm(frame_debug, self.l_eyebrow, self.l_iris, RED)
-        frame_debug, l_iris_mouth = distance_between_two_lm(frame_debug, self.l_iris, self.l_mouth, GREEN)
-        frame_debug, l_eyebrow_mouth = distance_between_two_lm(frame_debug, self.l_eyebrow, self.l_mouth, BLUE)
-        frame_debug, r_eyebrow_iris = distance_between_two_lm(frame_debug, self.r_eyebrow, self.r_iris, RED)
-        frame_debug, r_iris_mouth = distance_between_two_lm(frame_debug, self.r_mouth, self.r_iris, GREEN)
-        frame_debug, r_eyebrow_mouth = distance_between_two_lm(frame_debug, self.r_eyebrow, self.r_mouth, BLUE)
-        frame_debug, eye_axis = distance_between_two_lm(frame_debug, self.l_iris, self.r_iris, BLUE)
+        frame_debug, mouth_h = distance_between_two_lm(frame_debug, self.l_mouth, self.r_mouth, Utils.WHITE)
+        frame_debug, mouth_v = distance_between_two_lm(frame_debug, self.upper_lip, self.lower_lip, Utils.WHITE)
+        frame_debug, l_eyebrow_iris = distance_between_two_lm(frame_debug, self.l_eyebrow, self.l_iris, Utils.RED)
+        frame_debug, l_iris_mouth = distance_between_two_lm(frame_debug, self.l_iris, self.l_mouth, Utils.GREEN)
+        frame_debug, l_eyebrow_mouth = distance_between_two_lm(frame_debug, self.l_eyebrow, self.l_mouth, Utils.BLUE)
+        frame_debug, r_eyebrow_iris = distance_between_two_lm(frame_debug, self.r_eyebrow, self.r_iris, Utils.RED)
+        frame_debug, r_iris_mouth = distance_between_two_lm(frame_debug, self.r_mouth, self.r_iris, Utils.GREEN)
+        frame_debug, r_eyebrow_mouth = distance_between_two_lm(frame_debug, self.r_eyebrow, self.r_mouth, Utils.BLUE)
+        frame_debug, eye_axis = distance_between_two_lm(frame_debug, self.l_iris, self.r_iris, Utils.BLUE)
 
         self.facial_distances.append(mouth_h)
         self.facial_distances.append(mouth_v)
@@ -245,7 +247,7 @@ class FaceMeshDetector:
         p1 = (p2[0], p0[1])
         p3 = (p0[0], p2[1])
         points = np.array([p0, p1, p2, p3], np.int32)
-        cv2.polylines(frame_debug, [points], True, YELLOW, 1)
+        cv2.polylines(frame_debug, [points], True, Utils.YELLOW, 1)
         mask_corrugator = np.zeros_like(gray)
         cv2.fillPoly(mask_corrugator, [points], 255)
         self.facial_masks.append(mask_corrugator)
@@ -255,7 +257,7 @@ class FaceMeshDetector:
         p2 = (int(self.l_smile_fold2[0]), int(self.l_smile_fold2[1]))
         p3 = (int(self.l_smile_fold3[0]), int(self.l_smile_fold3[1]))
         points = np.array([p0, p1, p2, p3], np.int32)
-        cv2.polylines(frame_debug, [points], True, YELLOW, 1)
+        cv2.polylines(frame_debug, [points], True, Utils.YELLOW, 1)
         mask_l_smile_fold = np.zeros_like(gray)
         cv2.fillPoly(mask_l_smile_fold, [points], 255)
         self.facial_masks.append(mask_l_smile_fold)
@@ -265,7 +267,7 @@ class FaceMeshDetector:
         p2 = (int(self.r_smile_fold2[0]), int(self.r_smile_fold2[1]))
         p3 = (int(self.r_smile_fold3[0]), int(self.r_smile_fold3[1]))
         points = np.array([p0, p1, p2, p3], np.int32)
-        cv2.polylines(frame_debug, [points], True, YELLOW, 1)
+        cv2.polylines(frame_debug, [points], True, Utils.YELLOW, 1)
         mask_r_smile_fold = np.zeros_like(gray)
         cv2.fillPoly(mask_r_smile_fold, [points], 255)
         self.facial_masks.append(mask_r_smile_fold)
@@ -275,7 +277,7 @@ class FaceMeshDetector:
         p2 = (int(self.l_eye_bbox2[0]), int(self.l_eye_bbox2[1]))
         p3 = (int(self.l_eye_bbox3[0]), int(self.l_eye_bbox3[1]))
         points = np.array([p0, p1, p2, p3], np.int32)
-        cv2.polylines(frame_debug, [points], True, YELLOW, 1)
+        cv2.polylines(frame_debug, [points], True, Utils.YELLOW, 1)
         mask_l_eye = np.zeros_like(gray)
         cv2.fillPoly(mask_l_eye, [points], 255)
         self.facial_masks.append(mask_l_eye)
@@ -285,7 +287,7 @@ class FaceMeshDetector:
         p2 = (int(self.r_eye_bbox2[0]), int(self.r_eye_bbox2[1]))
         p3 = (int(self.r_eye_bbox3[0]), int(self.r_eye_bbox3[1]))
         points = np.array([p0, p1, p2, p3], np.int32)
-        cv2.polylines(frame_debug, [points], True, YELLOW, 1)
+        cv2.polylines(frame_debug, [points], True, Utils.YELLOW, 1)
         mask_r_eye = np.zeros_like(gray)
         cv2.fillPoly(mask_r_eye, [points], 255)
         self.facial_masks.append(mask_r_eye)
@@ -341,7 +343,7 @@ class FaceMeshDetector:
         elif idx == R_EYE_BBOX_3:
             self.r_eye_bbox3 = (x, y)
 
-    def extract_frame_features(self, frame):
+    def extract_frame_distances(self, frame):
         frame_debug = frame.copy()
         img_h, img_w = frame_debug.shape[:2]
         self.results = self.faceMesh.process(frame_debug)
@@ -366,7 +368,7 @@ class FaceMeshDetector:
             x, y, z = get_rotation_angles(face_2d, face_3d, img_w, img_h)
 
             direction_text = looking_direction(x, y)
-            frame_debug = frame_text_direction_and_angles(frame_debug, direction_text, img_w, x, y, z)
+            frame_debug = frame_text_direction_and_angles(frame_debug, direction_text, x, y, z)
 
             self.head_position[0] += self.nose_3d[0]
             self.head_position[1] += self.nose_3d[1]
@@ -376,5 +378,7 @@ class FaceMeshDetector:
             self.head_position[5] += z
             self.compute_facial_distances(frame_debug, x, y)
             self.compute_facial_expression_masks(frame, frame_debug)
+
+            frame_debug = text_distances(self.facial_distances, frame_debug)
 
         return frame_debug, self.head_position, self.facial_distances, self.facial_masks
