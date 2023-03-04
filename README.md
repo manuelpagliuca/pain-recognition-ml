@@ -23,7 +23,6 @@ Once the biopotential signals and video features are ready, fusion techniques ar
 
 The classifier used in this project was *Support Vector Machines*.
 
-### Video feature extraction
 ## Tools
 * IntelliJ IDEA and Python for developing the project application.
 * Microsoft Excel for working with the `.csv` files.
@@ -35,7 +34,7 @@ The classifier used in this project was *Support Vector Machines*.
 * Sk-learn
 * Numpy
 
-## Computer vision techniques
+## Video feature extraction
 The computer vision techniques used were for extraction of facial distances, gradients of facial folds, and for head position.
 
 ### Facial distances and head pose estimation
