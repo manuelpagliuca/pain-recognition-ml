@@ -31,7 +31,7 @@ The classifier used in this project was *Support Vector Machines*.
 
 ## Dependencies
 * OpenCV
-* Mediapipe
+* MediaPipe
 * Sk-learn
 * Numpy
 
