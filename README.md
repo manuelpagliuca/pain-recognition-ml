@@ -4,7 +4,7 @@
 ![Unity](https://img.shields.io/badge/language-Python-brightgreen)
 [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](mailto:pagliuca.manuel@gmail.com)
 ## About the project
-This is a unified project for the courses Affective Computing and Natural Interaction at [PhuseLab](https://phuselab.di.unimi.it/), University of Milan, A.Y. 2021/2022.
+This is a unified project for the courses Affective Computing and Natural Interaction at [PhuseLab](https://phuselab.di.unimi.it/), University of Milan, A.Y. 2021/2022, M.Sc. in Computer Science.
 
 The aim of this project is to test the accuracy of early and late fusion approaches on a multi-modal dataset to classify the presence of pain in patients. Participants were subjected to an external heat-pain stimulus through a physical device.
 
@@ -19,7 +19,7 @@ The analysis phase involves extracting features from the video signals through c
 
 Once the biopotential signals and video features are ready, fusion techniques are used to perform classification.
 - **Early fusion** involves fusing signals and video features a priori concerning classification. Then train the classifier on the combined inputs.
-- **Late fusion** involves training three classifiers (of the same type) on different inputs (ECG, GSR, and video), then for each sample in the testing set its prediction is calculated with all three classifiers. The majority prediction is considered; if that prediction coincides with the *ground truth*, then that prediction is considered correct.
+- **Late fusion** involves training three classifiers (of the same type) on different inputs (ECG, GSR, and video), Then for each sample in the testing set its prediction is calculated with all three classifiers. The majority prediction is considered; if that prediction coincides with the *ground truth*, then that prediction is considered correct.
 
 The classifier used in this project was *Support Vector Machines*.
 
