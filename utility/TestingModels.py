@@ -127,14 +127,14 @@ def late_fusion():
 
 
 def binary_classification():
-    # svm_biosignals_binary = train_svm_binary_biosignals()
-    # svm_video_binary = train_svm_binary_video()
-    # svm_early_fusion = train_svm_early_fusion()
+    svm_biosignals_binary = train_svm_binary_biosignals()
+    svm_video_binary = train_svm_binary_video()
+    svm_early_fusion = train_svm_early_fusion()
 
-    # train_svm_ecg()
-    # train_svm_gsr()
-    # train_svm_emg_trapezius()
-    # train_svm_binary_video()
+    train_svm_ecg()
+    train_svm_gsr()
+    train_svm_emg_trapezius()
+    train_svm_binary_video()
 
     late_fusion()
 
